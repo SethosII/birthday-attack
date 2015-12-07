@@ -4,4 +4,9 @@
 *.ptx
 *.cubin
 *.fatbin
-/.project
+
+# Eclipse files
+.project
+.cproject
+/Debug
+/Release
