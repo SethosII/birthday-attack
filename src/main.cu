@@ -1,18 +1,22 @@
 // C standard header files
-#include <limits.h>
-#include <math.h>
+
+#include <cuda_runtime.h>
+#include <cuda_runtime_api.h>
+#include <curand_kernel.h>
+#include <device_launch_parameters.h>
+#include <driver_types.h>
 #include <stdbool.h>
+#include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <vector_types.h>
 
-// CUDA header files
-#include <cuda_runtime.h>
-#include <curand_kernel.h>
+const int MAX = 100;
+const int LENGHT = 10;
+const size_t SIZE_OF_RANDS = LENGHT * sizeof(double);
 
 typedef struct Handle {
-	bool gpu;
-	bool help;
-	bool verbose;
+	bool gpu;bool help;bool verbose;
 } Handle;
 
 void fillRandomCPU(double* array, const int length);
@@ -21,27 +25,26 @@ void printArray(const double* array, const int length);
 void processParameters(Handle* handle, int argc, char* argv[]);
 
 int main(int argc, char* argv[]) {
-	Handle handle = { .gpu = false, .help = false, .verbose = false };
+	Handle handle = {.gpu = false, .help = false, .verbose = false};
 	processParameters(&handle, argc, argv);
 
-	int randomNumbersLength = 10;
-	size_t randomNumbersSize = randomNumbersLength * sizeof(double);
-	double* randomNumbers = (double*) malloc(randomNumbersLength * sizeof(double));
+	double* randomNumbers = (double*) malloc(SIZE_OF_RANDS);
 
 	if (handle.gpu) {
 		double* d_randomNumbers;
-		cudaMalloc(&d_randomNumbers, randomNumbersSize);
+		cudaMalloc((void **) &d_randomNumbers, SIZE_OF_RANDS);
 
-		fillRandomGPU<<<1,1>>>(randomNumbers, randomNumbersLength);
+		fillRandomGPU<<<1, 1>>>(d_randomNumbers, LENGHT);
 
-		cudaMemcpy(randomNumbers, d_randomNumbers, randomNumbersSize, cudaMemcpyDeviceToHost);
+		cudaMemcpy(randomNumbers, d_randomNumbers, SIZE_OF_RANDS,
+				cudaMemcpyDeviceToHost);
 
 		cudaFree(d_randomNumbers);
 	} else {
-		fillRandomCPU(randomNumbers, randomNumbersLength);
+		fillRandomCPU(randomNumbers, LENGHT);
 	}
 
-	printArray(randomNumbers, randomNumbersLength);
+	printArray(randomNumbers, LENGHT);
 
 	free(randomNumbers);
 }
@@ -52,13 +55,12 @@ void fillRandomCPU(double* array, const int length) {
 	}
 }
 
-__global__ void fillRandomGPU(double* array, const int length) {
+__global__ void fillRandomGPU(double* result, const int lenght) {
 	int id = blockIdx.x * blockDim.x + threadIdx.x;
-	curandState state;
+	curandState_t state;
 	curand_init(id, id, id, &state);
-	printf("%d\n", curand(&state));
-	for (int i = 0; i < length; i++) {
-		array[i] = curand(&state);
+	for (int i = 0; i < lenght; i++) {
+		result[i] = curand(&state) % MAX;
 	}
 }
 
