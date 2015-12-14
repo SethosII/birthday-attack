@@ -1,17 +1,10 @@
 // C standard header files
 
-#include <cuda_runtime.h>
-#include <cuda_runtime_api.h>
 #include <curand_kernel.h>
-#include <device_launch_parameters.h>
-#include <driver_types.h>
 #include <stdbool.h>
-#include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <vector_types.h>
 
-const int MAX = 100;
 const int LENGHT = 10;
 const size_t SIZE_OF_RANDS = LENGHT * sizeof(double);
 
@@ -20,7 +13,8 @@ typedef struct Handle {
 } Handle;
 
 void fillRandomCPU(double* array, const int length);
-__global__ void fillRandomGPU(double* array, const int length);
+__global__ void fillRandomGPU(unsigned int seed, double* array,
+		const int length);
 void printArray(const double* array, const int length);
 void processParameters(Handle* handle, int argc, char* argv[]);
 
@@ -34,7 +28,7 @@ int main(int argc, char* argv[]) {
 		double* d_randomNumbers;
 		cudaMalloc((void **) &d_randomNumbers, SIZE_OF_RANDS);
 
-		fillRandomGPU<<<1, 1>>>(d_randomNumbers, LENGHT);
+		fillRandomGPU<<<1, 1>>>(time(NULL), d_randomNumbers, LENGHT);
 
 		cudaMemcpy(randomNumbers, d_randomNumbers, SIZE_OF_RANDS,
 				cudaMemcpyDeviceToHost);
@@ -55,12 +49,13 @@ void fillRandomCPU(double* array, const int length) {
 	}
 }
 
-__global__ void fillRandomGPU(double* result, const int lenght) {
+__global__ void fillRandomGPU(unsigned int seed, double* result,
+		const int lenght) {
 	int id = blockIdx.x * blockDim.x + threadIdx.x;
 	curandState_t state;
-	curand_init(id, id, id, &state);
+	curand_init(seed, id, id, &state);
 	for (int i = 0; i < lenght; i++) {
-		result[i] = curand(&state) % MAX;
+		result[i] = curand(&state);
 	}
 }
 
