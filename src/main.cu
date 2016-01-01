@@ -1,9 +1,19 @@
-// C standard header files
+//#define NDEBUG // include to remove asserts
 
-#include <curand_kernel.h>
+// C standard header files
+#include <limits.h>
+#include <math.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
+
+// CUDA header files
+#include <cuda_runtime.h>
+#include <curand_kernel.h>
+
+// own header files
+#include "sha256.h"
 
 const int LENGHT = 10;
 const size_t SIZE_OF_RANDS = LENGHT * sizeof(double);
@@ -19,7 +29,8 @@ void printArray(const double* array, const int length);
 void processParameters(Handle* handle, int argc, char* argv[]);
 
 int main(int argc, char* argv[]) {
-	Handle handle = {.gpu = false, .help = false, .verbose = false};
+	Handle
+	handle = {.gpu = false, .help = false, .verbose = false};
 	processParameters(&handle, argc, argv);
 
 	double* randomNumbers = (double*) malloc(SIZE_OF_RANDS);
@@ -41,6 +52,50 @@ int main(int argc, char* argv[]) {
 	printArray(randomNumbers, LENGHT);
 
 	free(randomNumbers);
+
+	if (handle.gpu) {
+		printf("\nHash on GPU not ready yet\n");
+	} else {
+#ifndef NDEBUG
+		testSha256LongInput();
+		testReduceSha256();
+#endif
+
+		unsigned int constantTextLength = 3;
+		unsigned char *constantText[] = { (unsigned char*) "This",
+				(unsigned char*) "a", (unsigned char*) "day." };
+		unsigned int stencilLength = 2;
+		unsigned char *stencil[][2] = { { (unsigned char*) "is",
+				(unsigned char*) "was" }, { (unsigned char*) "great",
+				(unsigned char*) "bad" } };
+
+		unsigned int maximalLength = constantTextLength + stencilLength;
+		for (int i = 0; i < constantTextLength; i++) {
+			maximalLength += strlen((char*) constantText[i]);
+		}
+		for (int i = 0; i < stencilLength; i++) {
+			maximalLength +=
+					(strlen((char*) stencil[i][0])
+							> strlen((char*) stencil[i][1])) ?
+							strlen((char*) stencil[i][0]) :
+							strlen((char*) stencil[i][1]);
+		}
+		unsigned char combined[maximalLength];
+
+		for (int i = 0; i < 2; i++) {
+			for (int j = 0; j < 2; j++) {
+				sprintf((char*) combined, "%s %s %s %s %s", constantText[0],
+						stencil[0][i], constantText[1], stencil[1][j],
+						constantText[2]);
+				printf("%s\n", combined);
+
+				unsigned char hash[4];
+				reducedHash(combined, hash, 1);
+				printHash(hash, 4);
+				printf("\n");
+			}
+		}
+	}
 }
 
 void fillRandomCPU(double* array, const int length) {
