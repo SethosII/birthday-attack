@@ -4,23 +4,26 @@
 #include <string.h>
 #include "sha256.h"
 
-const unsigned int C[64] = { 0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5,
-		0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5, 0xd807aa98, 0x12835b01,
-		0x243185be, 0x550c7dc3, 0x72be5d74, 0x80deb1fe, 0x9bdc06a7, 0xc19bf174,
-		0xe49b69c1, 0xefbe4786, 0x0fc19dc6, 0x240ca1cc, 0x2de92c6f, 0x4a7484aa,
-		0x5cb0a9dc, 0x76f988da, 0x983e5152, 0xa831c66d, 0xb00327c8, 0xbf597fc7,
-		0xc6e00bf3, 0xd5a79147, 0x06ca6351, 0x14292967, 0x27b70a85, 0x2e1b2138,
-		0x4d2c6dfc, 0x53380d13, 0x650a7354, 0x766a0abb, 0x81c2c92e, 0x92722c85,
-		0xa2bfe8a1, 0xa81a664b, 0xc24b8b70, 0xc76c51a3, 0xd192e819, 0xd6990624,
-		0xf40e3585, 0x106aa070, 0x19a4c116, 0x1e376c08, 0x2748774c, 0x34b0bcb5,
-		0x391c0cb3, 0x4ed8aa4a, 0x5b9cca4f, 0x682e6ff3, 0x748f82ee, 0x78a5636f,
-		0x84c87814, 0x8cc70208, 0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2 };
+__managed__ unsigned int C[64] = { 0x428a2f98, 0x71374491, 0xb5c0fbcf,
+		0xe9b5dba5, 0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5, 0xd807aa98,
+		0x12835b01, 0x243185be, 0x550c7dc3, 0x72be5d74, 0x80deb1fe, 0x9bdc06a7,
+		0xc19bf174, 0xe49b69c1, 0xefbe4786, 0x0fc19dc6, 0x240ca1cc, 0x2de92c6f,
+		0x4a7484aa, 0x5cb0a9dc, 0x76f988da, 0x983e5152, 0xa831c66d, 0xb00327c8,
+		0xbf597fc7, 0xc6e00bf3, 0xd5a79147, 0x06ca6351, 0x14292967, 0x27b70a85,
+		0x2e1b2138, 0x4d2c6dfc, 0x53380d13, 0x650a7354, 0x766a0abb, 0x81c2c92e,
+		0x92722c85, 0xa2bfe8a1, 0xa81a664b, 0xc24b8b70, 0xc76c51a3, 0xd192e819,
+		0xd6990624, 0xf40e3585, 0x106aa070, 0x19a4c116, 0x1e376c08, 0x2748774c,
+		0x34b0bcb5, 0x391c0cb3, 0x4ed8aa4a, 0x5b9cca4f, 0x682e6ff3, 0x748f82ee,
+		0x78a5636f, 0x84c87814, 0x8cc70208, 0x90befffa, 0xa4506ceb, 0xbef9a3f7,
+		0xc67178f2 };
 
-unsigned int choice(unsigned int x, unsigned int y, unsigned int z) {
+__host__ __device__ unsigned int choice(unsigned int x, unsigned int y,
+		unsigned int z) {
 	return (x & y) ^ (~x & z);
 }
 
-bool compareHash(unsigned char hash1[], unsigned char hash2[], int length) {
+__host__ __device__ bool compareHash(unsigned char hash1[],
+		unsigned char hash2[], int length) {
 	for (int i = 0; i < length; i++) {
 		if (hash1[i] != hash2[i]) {
 			return false;
@@ -29,40 +32,44 @@ bool compareHash(unsigned char hash1[], unsigned char hash2[], int length) {
 	return true;
 }
 
-void copyHash(unsigned char from[], unsigned char to[], int length) {
+__host__ __device__ void copyHash(unsigned char from[], unsigned char to[],
+		int length) {
 	for (int i = 0; i < length; i++) {
 		to[i] = from[i];
 	}
 }
 
 // doubleIntAdd treats two unsigned ints a and b as one 64-bit integer and adds c to it
-void doubleIntAdd(unsigned int* a, unsigned int* b, unsigned int c) {
+__host__ __device__ void doubleIntAdd(unsigned int* a, unsigned int* b,
+		unsigned int c) {
 	if (*a > (0xffffffff - c)) {
 		*b++;
 	}
 	*a += c;
 }
 
-unsigned int epsilon0(unsigned int x) {
+__host__ __device__ unsigned int epsilon0(unsigned int x) {
 	return rotateRight(x, 2) ^ rotateRight(x, 13) ^ rotateRight(x, 22);
 }
 
-unsigned int epsilon1(unsigned int x) {
+__host__ __device__ unsigned int epsilon1(unsigned int x) {
 	return rotateRight(x, 6) ^ rotateRight(x, 11) ^ rotateRight(x, 25);
 }
 
-unsigned int majority(unsigned int x, unsigned int y, unsigned int z) {
+__host__ __device__ unsigned int majority(unsigned int x, unsigned int y,
+		unsigned int z) {
 	return (x & y) ^ (x & z) ^ (y & z);
 }
 
-void printHash(unsigned char hash[], int length) {
+__host__ __device__ void printHash(unsigned char hash[], int length) {
 	for (int i = 0; i < length; i++) {
 		printf("%02x", hash[i]);
 	}
 	printf("\n");
 }
 
-void reduceSha256(unsigned char hash[], unsigned char reducedHash[]) {
+__host__ __device__ void reduceSha256(unsigned char hash[],
+		unsigned char reducedHash[]) {
 	for (int i = 0; i < 4; i++) {
 		reducedHash[i] = hash[i];
 	}
@@ -73,18 +80,18 @@ void reduceSha256(unsigned char hash[], unsigned char reducedHash[]) {
 	}
 }
 
-void reducedHash(unsigned char data[], unsigned char hash[],
+__host__ __device__ void reducedHash(unsigned char data[], unsigned char hash[],
 		unsigned int iterations) {
 	unsigned char sha256hash[32];
 	sha256(data, sha256hash, iterations);
 	reduceSha256(sha256hash, hash);
 }
 
-unsigned int rotateRight(unsigned int a, unsigned int b) {
+__host__ __device__ unsigned int rotateRight(unsigned int a, unsigned int b) {
 	return (a >> b) | (a << (32 - b));
 }
 
-void sha256Init(sha256Context *context) {
+__host__ __device__ void sha256Init(sha256Context *context) {
 	context->dataLength = 0;
 	context->bitLength[0] = 0;
 	context->bitLength[1] = 0;
@@ -98,18 +105,19 @@ void sha256Init(sha256Context *context) {
 	context->state[7] = 0x5be0cd19;
 }
 
-void sha256(unsigned char data[], unsigned char hash[],
+__host__ __device__ void sha256(unsigned char data[], unsigned char hash[],
 		unsigned int iterations) {
 	sha256Context context;
 
 	sha256Init(&context);
 	for (int j = 0; j < iterations; j++) {
-		sha256Update(&context, data, strlen((char*) data));
+		sha256Update(&context, data);
 	}
 	sha256Final(&context, hash);
 }
 
-void sha256Final(sha256Context *context, unsigned char hash[]) {
+__host__ __device__ void sha256Final(sha256Context *context,
+		unsigned char hash[]) {
 	unsigned int length = context->dataLength;
 
 	// pad data in the buffer.
@@ -145,7 +153,8 @@ void sha256Final(sha256Context *context, unsigned char hash[]) {
 	}
 }
 
-void sha256Transform(sha256Context *context, unsigned char data[]) {
+__host__ __device__ void sha256Transform(sha256Context *context,
+		unsigned char data[]) {
 	unsigned int shadowRegister[8];
 	unsigned int messageSchedule[64];
 
@@ -183,8 +192,9 @@ void sha256Transform(sha256Context *context, unsigned char data[]) {
 	}
 }
 
-void sha256Update(sha256Context *context, unsigned char data[],
-		unsigned int length) {
+__host__ __device__ void sha256Update(sha256Context *context,
+		unsigned char data[]) {
+	unsigned int length = stringLength(data);
 	for (unsigned int i = 0; i < length; i++) {
 		context->data[context->dataLength] = data[i];
 		context->dataLength++;
@@ -196,12 +206,19 @@ void sha256Update(sha256Context *context, unsigned char data[],
 	}
 }
 
-unsigned int sigma0(unsigned int x) {
+__host__ __device__ unsigned int sigma0(unsigned int x) {
 	return rotateRight(x, 7) ^ rotateRight(x, 18) ^ (x >> 3);
 }
 
-unsigned int sigma1(unsigned int x) {
+__host__ __device__ unsigned int sigma1(unsigned int x) {
 	return rotateRight(x, 17) ^ rotateRight(x, 19) ^ (x >> 10);
+}
+
+__host__ __device__ unsigned int stringLength(unsigned char* str) {
+	unsigned int length;
+	for (length = 0; str[length] != '\0'; length++) {
+	}
+	return length;
 }
 
 /*
@@ -221,7 +238,7 @@ unsigned int sigma1(unsigned int x) {
  *
  * 19366ec7
  */
-void testReduceSha256() {
+__host__ __device__ void testReduceSha256() {
 	// text: unsigned char combined[] = "This is a great day.";
 	unsigned char specifiedHash[] = { 0x19, 0x36, 0x6e, 0xc7 };
 	unsigned char sha256hash[32] = { 0x93, 0x78, 0x4e, 0xf2, 0x2a, 0xb7, 0xc9,
@@ -236,7 +253,7 @@ void testReduceSha256() {
 	printf("DEBUG: testReduceSha256 passed\n");
 }
 
-void testSha256LongInput() {
+__host__ __device__ void testSha256LongInput() {
 	unsigned char longText[] = "aaaaaaaaaa";
 	unsigned char specifiedHash[] = { 0xcd, 0xc7, 0x6e, 0x5c, 0x99, 0x14, 0xfb,
 			0x92, 0x81, 0xa1, 0xc7, 0xe2, 0x84, 0xd7, 0x3e, 0x67, 0xf1, 0x80,
