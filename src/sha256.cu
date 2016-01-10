@@ -32,13 +32,6 @@ __host__ __device__ bool compareHash(unsigned char hash1[],
 	return true;
 }
 
-__host__ __device__ void copyHash(unsigned char from[], unsigned char to[],
-		int length) {
-	for (int i = 0; i < length; i++) {
-		to[i] = from[i];
-	}
-}
-
 // doubleIntAdd treats two unsigned ints a and b as one 64-bit integer and adds c to it
 __host__ __device__ void doubleIntAdd(unsigned int* a, unsigned int* b,
 		unsigned int c) {

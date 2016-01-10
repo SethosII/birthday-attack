@@ -13,8 +13,6 @@ __host__ __device__ unsigned int choice(unsigned int x, unsigned int y,
 		unsigned int z);
 __host__ __device__ bool compareHash(unsigned char hash1[],
 		unsigned char hash2[], int length);
-__host__ __device__ void copyHash(unsigned char from[], unsigned char to[],
-		int length);
 __host__ __device__ void doubleIntAdd(unsigned int* a, unsigned int* b,
 		unsigned int c);
 __host__ __device__ unsigned int epsilon0(unsigned int x);
