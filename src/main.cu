@@ -22,12 +22,25 @@ typedef struct Handle {
 	bool gpu;bool help;bool verbose;
 } Handle;
 
+__global__ void birthdayAttack(unsigned char* hashs, unsigned int dim);
 void fillRandomCPU(double* array, const int length);
 __global__ void fillRandomGPU(unsigned int seed, double* array,
 		const int length);
 __global__ void hashtestGPU();
 void printArray(const double* array, const int length);
 void processParameters(Handle* handle, int argc, char* argv[]);
+
+__managed__ unsigned char* goodText = (unsigned char*) "................";
+__managed__ unsigned int goodTextOffsets[] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17};
+__managed__ unsigned char* goodStencil = (unsigned char*) "qwertzuiopasdfghjklyxcvbnm123456";
+__managed__ unsigned int goodStencilOffsets[] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32};
+
+__managed__ unsigned char* badText = (unsigned char*) "................";
+__managed__ unsigned int badTextOffsets[] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17};
+__managed__ unsigned char* badStencil = (unsigned char*) "qqwweerrttzzuuiiooppaassddffgghhjjkkllyyxxccvvbbnnmm112233445566";
+__managed__ unsigned int badStencilOffsets[] = {0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30, 32, 34, 36, 38, 40, 42, 44, 46, 48, 50, 52, 54, 56, 58, 60, 62, 64};
+
+__managed__ bool collision = false;
 
 int main(int argc, char* argv[]) {
 	Handle
@@ -71,7 +84,7 @@ int main(int argc, char* argv[]) {
 				(unsigned char*) "was", (unsigned char*) "great",
 				(unsigned char*) "bad" };
 
-		unsigned int maximalLength = constantTextLength + stencilLength;
+		unsigned int maximalLength = constantTextLength + stencilLength / 2;
 		for (int i = 0; i < constantTextLength; i++) {
 			maximalLength += stringLength(constantText[i]);
 		}
@@ -95,6 +108,81 @@ int main(int argc, char* argv[]) {
 				reducedHash(combined, hash, 1);
 				printHash(hash, 4);
 				printf("\n");
+			}
+		}
+	}
+
+	unsigned int dim = pow(2, 16);
+
+	unsigned char* d_hashs;
+	cudaMalloc((void**) &d_hashs, dim * 4 * sizeof(unsigned char));
+
+	dim3 blockDim(256);
+	dim3 gridDim((dim + blockDim.x - 1) / blockDim.x);
+
+	cudaEvent_t custart, custop;
+	cudaEventCreate(&custart);
+	cudaEventCreate(&custop);
+	cudaEventRecord(custart, 0);
+	birthdayAttack<<<gridDim, blockDim>>>(d_hashs, dim);
+	cudaEventRecord(custop, 0);
+	cudaEventSynchronize(custop);
+	float elapsedTime;
+	cudaEventElapsedTime(&elapsedTime, custart,custop);
+	printf("birthdayAttack: %3.1f ms\n", elapsedTime);
+	cudaEventDestroy(custart);
+	cudaEventDestroy(custop);
+
+	unsigned char hashs[8];
+	cudaMemcpy(hashs, d_hashs, 2 * 4 * sizeof(unsigned char), cudaMemcpyDeviceToHost);
+	printHash(&hashs[0], 4);
+	printHash(&hashs[4], 4);
+
+	cudaFree(d_hashs);
+}
+
+__global__ void birthdayAttack(unsigned char* hashs, unsigned int dim) {
+	unsigned int x = blockIdx.x * blockDim.x + threadIdx.x;
+	char substring[20];
+	unsigned int substringLength;
+	if (x < dim) {
+		substringLength = goodStencilOffsets[x + 1] - goodStencilOffsets[x];
+		memcpy(substring, &goodStencil[goodStencilOffsets[x]], substringLength);
+		substring[substringLength] = '\0';
+
+		unsigned char sha256hash[32];
+		sha256Context context;
+		sha256Init(&context);
+		for (int j = 0; j < 1; j++) {
+			if (x == 0) {
+				unsigned char* text = (unsigned char*) "bla";
+				sha256Update(&context, text);
+			} else {
+				sha256Update(&context, goodText);
+			}
+		}
+		sha256Final(&context, sha256hash);
+
+		reduceSha256(sha256hash, &hashs[x * 4]);
+	}
+	__syncthreads();
+
+	if (x < dim) {
+		unsigned char sha256hash[32];
+		sha256Context context;
+		sha256Init(&context);
+		for (int j = 0; j < 1; j++) {
+			sha256Update(&context, badText);
+		}
+		sha256Final(&context, sha256hash);
+
+		unsigned char hash[4];
+		reduceSha256(sha256hash, hash);
+
+		for (unsigned int i = 0; i < dim; i++) {
+			if (compareHash(&hashs[i * 4], hash, 4)) {
+				//printf("Kollision! Gut: %d Böse: %d\n", i, x);
+				collision = true;
 			}
 		}
 	}
