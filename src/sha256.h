@@ -33,7 +33,7 @@ __host__ __device__ void sha256Final(sha256Context *context,
 __host__ __device__ void sha256Transform(sha256Context *context,
 		unsigned char data[]);
 __host__ __device__ void sha256Update(sha256Context *context,
-		unsigned char data[]);
+		unsigned char data[], unsigned int length);
 __host__ __device__ unsigned int sigma0(unsigned int x);
 __host__ __device__ unsigned int sigma1(unsigned int x);
 __host__ __device__ unsigned int stringLength(unsigned char* str);

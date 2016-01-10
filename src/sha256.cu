@@ -104,7 +104,7 @@ __host__ __device__ void sha256(unsigned char data[], unsigned char hash[],
 
 	sha256Init(&context);
 	for (int j = 0; j < iterations; j++) {
-		sha256Update(&context, data);
+		sha256Update(&context, data, stringLength(data));
 	}
 	sha256Final(&context, hash);
 }
@@ -186,8 +186,7 @@ __host__ __device__ void sha256Transform(sha256Context *context,
 }
 
 __host__ __device__ void sha256Update(sha256Context *context,
-		unsigned char data[]) {
-	unsigned int length = stringLength(data);
+		unsigned char data[], unsigned int length) {
 	for (unsigned int i = 0; i < length; i++) {
 		context->data[context->dataLength] = data[i];
 		context->dataLength++;

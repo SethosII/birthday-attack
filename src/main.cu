@@ -143,12 +143,9 @@ int main(int argc, char* argv[]) {
 
 __global__ void birthdayAttack(unsigned char* hashs, unsigned int dim) {
 	unsigned int x = blockIdx.x * blockDim.x + threadIdx.x;
-	char substring[20];
 	unsigned int substringLength;
 	if (x < dim) {
 		substringLength = goodStencilOffsets[x + 1] - goodStencilOffsets[x];
-		memcpy(substring, &goodStencil[goodStencilOffsets[x]], substringLength);
-		substring[substringLength] = '\0';
 
 		unsigned char sha256hash[32];
 		sha256Context context;
@@ -156,9 +153,9 @@ __global__ void birthdayAttack(unsigned char* hashs, unsigned int dim) {
 		for (int j = 0; j < 1; j++) {
 			if (x == 0) {
 				unsigned char* text = (unsigned char*) "bla";
-				sha256Update(&context, text);
+				sha256Update(&context, text, stringLength(text));
 			} else {
-				sha256Update(&context, goodText);
+				sha256Update(&context, goodText, stringLength(goodText));
 			}
 		}
 		sha256Final(&context, sha256hash);
@@ -172,7 +169,7 @@ __global__ void birthdayAttack(unsigned char* hashs, unsigned int dim) {
 		sha256Context context;
 		sha256Init(&context);
 		for (int j = 0; j < 1; j++) {
-			sha256Update(&context, badText);
+			sha256Update(&context, badText, stringLength(badText));
 		}
 		sha256Final(&context, sha256hash);
 
