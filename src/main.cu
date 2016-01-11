@@ -30,15 +30,23 @@ __global__ void hashtestGPU();
 void printArray(const double* array, const int length);
 void processParameters(Handle* handle, int argc, char* argv[]);
 
-__managed__ unsigned char* goodText = (unsigned char*) "................";
-__managed__ unsigned int goodTextOffsets[] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17};
-__managed__ unsigned char* goodStencil = (unsigned char*) "qwertzuiopasdfghjklyxcvbnm123456";
-__managed__ unsigned int goodStencilOffsets[] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32};
+__managed__ unsigned char* goodText = (unsigned char*) ".................";
+__managed__ unsigned int goodTextOffsets[] = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10,
+		11, 12, 13, 14, 15, 16, 17 };
+__managed__ unsigned char* goodStencil =
+		(unsigned char*) "qwertzuiopasdfghjklyxcvbnm123456";
+__managed__ unsigned int goodStencilOffsets[] = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9,
+		10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27,
+		28, 29, 30, 31, 32 };
 
-__managed__ unsigned char* badText = (unsigned char*) "................";
-__managed__ unsigned int badTextOffsets[] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17};
-__managed__ unsigned char* badStencil = (unsigned char*) "qqwweerrttzzuuiiooppaassddffgghhjjkkllyyxxccvvbbnnmm112233445566";
-__managed__ unsigned int badStencilOffsets[] = {0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30, 32, 34, 36, 38, 40, 42, 44, 46, 48, 50, 52, 54, 56, 58, 60, 62, 64};
+__managed__ unsigned char* badText = (unsigned char*) ".................";
+__managed__ unsigned int badTextOffsets[] = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10,
+		11, 12, 13, 14, 15, 16, 17 };
+__managed__ unsigned char* badStencil =
+		(unsigned char*) "qqwweerrttzzuuiiooppaassddffgghhjjkkllyyxxccvvbbnnmm112233445566";
+__managed__ unsigned int badStencilOffsets[] = { 0, 2, 4, 6, 8, 10, 12, 14, 16,
+		18, 20, 22, 24, 26, 28, 30, 32, 34, 36, 38, 40, 42, 44, 46, 48, 50, 52,
+		54, 56, 58, 60, 62, 64 };
 
 __managed__ bool collision = false;
 
@@ -128,13 +136,14 @@ int main(int argc, char* argv[]) {
 	cudaEventRecord(custop, 0);
 	cudaEventSynchronize(custop);
 	float elapsedTime;
-	cudaEventElapsedTime(&elapsedTime, custart,custop);
+	cudaEventElapsedTime(&elapsedTime, custart, custop);
 	printf("birthdayAttack: %3.1f ms\n", elapsedTime);
 	cudaEventDestroy(custart);
 	cudaEventDestroy(custop);
 
 	unsigned char hashs[8];
-	cudaMemcpy(hashs, d_hashs, 2 * 4 * sizeof(unsigned char), cudaMemcpyDeviceToHost);
+	cudaMemcpy(hashs, d_hashs, 2 * 4 * sizeof(unsigned char),
+			cudaMemcpyDeviceToHost);
 	printHash(&hashs[0], 4);
 	printHash(&hashs[4], 4);
 
@@ -145,7 +154,36 @@ __global__ void birthdayAttack(unsigned char* hashs, unsigned int dim) {
 	unsigned int x = blockIdx.x * blockDim.x + threadIdx.x;
 	unsigned int substringLength;
 	if (x < dim) {
-		substringLength = goodStencilOffsets[x + 1] - goodStencilOffsets[x];
+		sha256Context dummyContext;
+		sha256Init(&dummyContext);
+		for (int i = 0; i < 16; i++) {
+			substringLength = goodTextOffsets[i + 1] - goodTextOffsets[i];
+			sha256Update(&dummyContext, &goodText[goodTextOffsets[i]],
+					substringLength);
+			for (int j = 0; j < substringLength && x == 0; j++) {
+				printf("%c", goodText[goodTextOffsets[i] + j]);
+			}
+
+			int number = x >> i & 0x00000001;
+			substringLength = goodStencilOffsets[i * 2 + 1 + number]
+					- goodStencilOffsets[i * 2 + number];
+			sha256Update(&dummyContext,
+					&goodStencil[goodStencilOffsets[i * 2 + number]],
+					substringLength);
+			for (int j = 0; j < substringLength && x == 0; j++) {
+				printf("%c",
+						goodStencil[goodStencilOffsets[i * 2 + number] + j]);
+			}
+		}
+		substringLength = goodTextOffsets[17] - goodTextOffsets[16];
+		sha256Update(&dummyContext, &goodText[goodTextOffsets[16]],
+				substringLength);
+		for (int j = 0; j < substringLength && x == 0; j++) {
+			printf("%c", goodText[goodTextOffsets[16] + j]);
+		}
+		if (x == 0) {
+			printf("\n");
+		}
 
 		unsigned char sha256hash[32];
 		sha256Context context;
