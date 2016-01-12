@@ -41,3 +41,4 @@ __host__ __device__ void testReduceSha256();
 __host__ __device__ void testSha256LongInput();
 
 #endif
+
