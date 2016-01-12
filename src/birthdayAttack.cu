@@ -40,7 +40,7 @@ void birthdayAttack() {
 	cudaEventRecord(custart, 0);
 
 	initBirthdayAttack<<<gridDim, blockDim>>>(hashs, dim);
-	compareBirthdayAttack<<<gridDim, blockDim>>>(hashs, dim);
+	compareBirthdayAttack<<<gridDim, blockDim, blockDim.x * 4>>>(hashs, dim);
 
 	cudaEventRecord(custop, 0);
 	cudaEventSynchronize(custop);
@@ -60,16 +60,16 @@ void birthdayAttack() {
 }
 
 __global__ void compareBirthdayAttack(unsigned char* hashs, unsigned int dim) {
-	int reducedHashSize = 4;
-	unsigned char hash[4];
 	unsigned int x = blockIdx.x * blockDim.x + threadIdx.x;
 	if (x < dim) {
+		const int reducedHashSize = 4;
+		unsigned char hash[reducedHashSize];
 		reduceHashFromStencil(x, hash, badText, badTextOffsets, badStencil,
 				badStencilOffsets);
 		int blockSize = blockDim.x;
 		int blockN = dim / blockSize;
-		const int cacheSize = 256 * 4;
-		__shared__ unsigned char cache[cacheSize];
+		int cacheSize = blockSize * reducedHashSize;
+		extern __shared__ unsigned char cache[];
 
 		for (int b = 0; b < blockN; b++) {
 			for (int i = 0; i < reducedHashSize; i++) {
