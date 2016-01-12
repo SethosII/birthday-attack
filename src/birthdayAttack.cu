@@ -1,3 +1,4 @@
+#include <math.h>
 #include <stdio.h>
 #include "sha256.h"
 #include "birthdayAttack.h"
@@ -19,6 +20,8 @@ __constant__ unsigned char* goodStencil =
 __constant__ unsigned int goodStencilOffsets[] = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9,
 		10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27,
 		28, 29, 30, 31, 32 };
+
+__device__ int lock = 0;
 
 __managed__ bool collision = false;
 
@@ -57,48 +60,88 @@ void birthdayAttack() {
 }
 
 __global__ void compareBirthdayAttack(unsigned char* hashs, unsigned int dim) {
+	int reducedHashSize = 4;
 	unsigned char hash[4];
 	unsigned int x = blockIdx.x * blockDim.x + threadIdx.x;
 	if (x < dim) {
 		reduceHashFromStencil(x, hash, badText, badTextOffsets, badStencil,
 				badStencilOffsets);
-		for (unsigned int i = 0; i < dim; i++) {
-			if (compareHash(&hashs[i * 4], hash, 4)) {
-				printf("Collision, good index: %d, bad index: %d\n", i, x);
-				collision = true;
+		int blockSize = blockDim.x;
+		int blockN = dim / blockSize;
+		const int cacheSize = 256 * 4;
+		__shared__ unsigned char cache[cacheSize];
+
+		for (int b = 0; b < blockN; b++) {
+			for (int i = 0; i < reducedHashSize; i++) {
+				cache[threadIdx.x + i * blockSize] = hashs[threadIdx.x
+						+ i * blockSize + b * cacheSize];
 			}
+			__syncthreads();
+
+			for (unsigned int i = 0; i < blockSize; i++) {
+				if (compareHash(&cache[i * reducedHashSize], hash,
+						reducedHashSize)) {
+					while (atomicCAS(&lock, 0, 1) != 0) {
+					}
+					printf("Collision, good plaintext:\n");
+					printPlaintextOfIndex(
+							threadIdx.x + i * blockSize + b * cacheSize,
+							goodText, goodTextOffsets, goodStencil,
+							goodStencilOffsets);
+					printf("bad plaintext:\n");
+					printPlaintextOfIndex(x, badText, badTextOffsets,
+							badStencil, badStencilOffsets);
+					printf("\n");
+					collision = true;
+					atomicExch(&lock, 0);
+				}
+			}
+			__syncthreads();
 		}
+	} else {
+		__syncthreads();
+		__syncthreads();
 	}
 }
 
 __device__ void combineStencilForContext(unsigned int x, sha256Context& context,
 		unsigned char* texts, unsigned int* textOffsets,
 		unsigned char* stencils, unsigned int* stencilOffsets) {
-
 	unsigned int substringLength;
 	for (int i = 0; i < 16; i++) {
 		substringLength = textOffsets[i + 1] - textOffsets[i];
 		sha256Update(&context, &texts[textOffsets[i]], substringLength);
-		for (int j = 0; j < substringLength && x == 0; j++) {
-			printf("%c", texts[textOffsets[i] + j]);
-		}
 		int number = x >> i & 0x00000001;
 		substringLength = stencilOffsets[i * 2 + 1 + number]
 				- stencilOffsets[i * 2 + number];
 		sha256Update(&context, &stencils[stencilOffsets[i * 2 + number]],
 				substringLength);
-		for (int j = 0; j < substringLength && x == 0; j++) {
+	}
+	substringLength = textOffsets[17] - textOffsets[16];
+	sha256Update(&context, &texts[textOffsets[16]], substringLength);
+}
+
+__device__ void printPlaintextOfIndex(unsigned int x, unsigned char* texts,
+		unsigned int* textOffsets, unsigned char* stencils,
+		unsigned int* stencilOffsets) {
+	unsigned int substringLength;
+	for (int i = 0; i < 16; i++) {
+		substringLength = textOffsets[i + 1] - textOffsets[i];
+		for (int j = 0; j < substringLength; j++) {
+			printf("%c", texts[textOffsets[i] + j]);
+		}
+		int number = x >> i & 0x00000001;
+		substringLength = stencilOffsets[i * 2 + 1 + number]
+				- stencilOffsets[i * 2 + number];
+		for (int j = 0; j < substringLength; j++) {
 			printf("%c", stencils[stencilOffsets[i * 2 + number] + j]);
 		}
 	}
 	substringLength = textOffsets[17] - textOffsets[16];
-	sha256Update(&context, &texts[textOffsets[16]], substringLength);
-	for (int j = 0; j < substringLength && x == 0; j++) {
+	for (int j = 0; j < substringLength; j++) {
 		printf("%c", texts[textOffsets[16] + j]);
 	}
-	if (x == 0) {
-		printf("\n");
-	}
+	printf("\n");
 }
 
 __global__ void initBirthdayAttack(unsigned char* hashs, unsigned int dim) {
