@@ -28,7 +28,6 @@ int main(int argc, char* argv[]) {
 	handle = {.gpu = false, .help = false, .verbose = false};
 	processParameters(&handle, argc, argv);
 
-
 #ifndef NDEBUG
 	if (handle.gpu) {
 		hashtestGPU<<<1, 1>>>();
@@ -37,35 +36,7 @@ int main(int argc, char* argv[]) {
 		hashtestCPU();
 	}
 #endif
-
-	unsigned int dim = pow(2, 16);
-
-	unsigned char* d_hashs;
-	cudaMalloc((void**) &d_hashs, dim * 4 * sizeof(unsigned char));
-
-	dim3 blockDim(256);
-	dim3 gridDim((dim + blockDim.x - 1) / blockDim.x);
-
-	cudaEvent_t custart, custop;
-	cudaEventCreate(&custart);
-	cudaEventCreate(&custop);
-	cudaEventRecord(custart, 0);
-	birthdayAttack<<<gridDim, blockDim>>>(d_hashs, dim);
-	cudaEventRecord(custop, 0);
-	cudaEventSynchronize(custop);
-	float elapsedTime;
-	cudaEventElapsedTime(&elapsedTime, custart, custop);
-	printf("birthdayAttack: %3.1f ms\n", elapsedTime);
-	cudaEventDestroy(custart);
-	cudaEventDestroy(custop);
-
-	unsigned char hashs[8];
-	cudaMemcpy(hashs, d_hashs, 2 * 4 * sizeof(unsigned char),
-			cudaMemcpyDeviceToHost);
-	printHash(&hashs[0], 4);
-	printHash(&hashs[4], 4);
-
-	cudaFree(d_hashs);
+	birthdayAttack();
 }
 
 void hashtestCPU() {
@@ -110,4 +81,3 @@ void processParameters(Handle* handle, int argc, char* argv[]) {
 		}
 	}
 }
-

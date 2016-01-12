@@ -258,4 +258,3 @@ __host__ __device__ void testSha256LongInput() {
 	assert(compareHash(specifiedHash, hash, 32));
 	printf("DEBUG: testSha256LongInput passed\n");
 }
-
