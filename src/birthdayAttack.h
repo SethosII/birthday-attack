@@ -2,7 +2,7 @@
 #define BIRTHDAYATTACK_H
 
 void birthdayAttack();
-__device__ void combineStencilForContext(unsigned int x, sha256Context& context,
+__device__ void combineStencilForContext(unsigned int x, sha256Context* context,
 		unsigned char* texts, unsigned int* textOffsets,
 		unsigned char* stencils, unsigned int* stencilOffsets);
 __global__ void compareBirthdayAttack(unsigned char* hashs, unsigned int dim,
