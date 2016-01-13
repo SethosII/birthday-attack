@@ -87,8 +87,13 @@ __global__ void compareBirthdayAttack(unsigned char* hashs, unsigned int dim,
 			__syncthreads();
 
 			for (unsigned int i = 0; i < blockSize; i++) {
-				if (compareHash(&cache[i * reducedHashSize], hash,
-						reducedHashSize)) {
+				// this comparison takes 99 % of the execution time
+				// manually inlined and unrolled for extra performance
+				bool isCollision = cache[i * reducedHashSize] == hash[0]
+						&& cache[i * reducedHashSize + 1] == hash[1]
+						&& cache[i * reducedHashSize + 2] == hash[2]
+						&& cache[i * reducedHashSize + 3] == hash[3];
+				if (isCollision) {
 					lock();
 
 					printf("Collision!\ngood plaintext:\n");
