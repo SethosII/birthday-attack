@@ -21,15 +21,18 @@ __constant__ unsigned int goodStencilOffsets[] = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9,
 		10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27,
 		28, 29, 30, 31, 32 };
 
-__device__ int lock = 0;
-
-__device__ bool collision = false;
+__device__ int mutex = 0;
 
 void birthdayAttack() {
 	unsigned int dim = pow(2, 16);
 
 	unsigned char* hashs;
-	cudaMallocManaged((void**) &hashs, dim * 4 * sizeof(unsigned char));
+	cudaMalloc((void**) &hashs, dim * 4 * sizeof(unsigned char));
+
+	bool* collision = false;
+	bool* d_collision;
+	cudaMalloc((void**) &d_collision, sizeof(bool));
+	cudaMemcpy(d_collision, collision, sizeof(bool), cudaMemcpyHostToDevice);
 
 	dim3 blockDim(256);
 	dim3 gridDim((dim + blockDim.x - 1) / blockDim.x);
@@ -40,7 +43,8 @@ void birthdayAttack() {
 	cudaEventRecord(custart, 0);
 
 	initBirthdayAttack<<<gridDim, blockDim>>>(hashs, dim);
-	compareBirthdayAttack<<<gridDim, blockDim, blockDim.x * 4>>>(hashs, dim);
+	compareBirthdayAttack<<<gridDim, blockDim, blockDim.x * 4>>>(hashs, dim,
+			d_collision);
 
 	cudaEventRecord(custop, 0);
 	cudaEventSynchronize(custop);
@@ -50,32 +54,34 @@ void birthdayAttack() {
 	cudaEventDestroy(custart);
 	cudaEventDestroy(custop);
 
-	bool hasCollision;
-	cudaMemcpy(&hasCollision, &collision, sizeof(bool), cudaMemcpyDeviceToHost);
-	if (hasCollision) {
+	cudaMemcpy(&collision, d_collision, sizeof(bool), cudaMemcpyDeviceToHost);
+	if (collision) {
 		printf("Collisions found!");
 	} else {
 		printf("No collisions found!");
 	}
 
 	cudaFree(hashs);
+	cudaFree(d_collision);
 }
 
-__global__ void compareBirthdayAttack(unsigned char* hashs, unsigned int dim) {
-	unsigned int x = blockIdx.x * blockDim.x + threadIdx.x;
+__global__ void compareBirthdayAttack(unsigned char* hashs, unsigned int dim,
+		bool* collision) {
+	int localThreadIndex = threadIdx.x;
+	int blockSize = blockDim.x;
+	int x = blockIdx.x * blockSize + localThreadIndex;
+	int blockCount = dim / blockSize;
 	if (x < dim) {
 		const int reducedHashSize = 4;
 		unsigned char hash[reducedHashSize];
 		reduceHashFromStencil(x, hash, badText, badTextOffsets, badStencil,
 				badStencilOffsets);
-		int blockSize = blockDim.x;
-		int blockN = dim / blockSize;
+
 		int cacheSize = blockSize * reducedHashSize;
 		extern __shared__ unsigned char cache[];
-
-		for (int b = 0; b < blockN; b++) {
+		for (int b = 0; b < blockCount; b++) {
 			for (int i = 0; i < reducedHashSize; i++) {
-				cache[threadIdx.x + i * blockSize] = hashs[threadIdx.x
+				cache[localThreadIndex + i * blockSize] = hashs[localThreadIndex
 						+ i * blockSize + b * cacheSize];
 			}
 			__syncthreads();
@@ -83,26 +89,30 @@ __global__ void compareBirthdayAttack(unsigned char* hashs, unsigned int dim) {
 			for (unsigned int i = 0; i < blockSize; i++) {
 				if (compareHash(&cache[i * reducedHashSize], hash,
 						reducedHashSize)) {
-					while (atomicCAS(&lock, 0, 1) != 0) {
-					}
-					printf("Collision, good plaintext:\n");
+					lock();
+
+					printf("Collision!\ngood plaintext:\n");
 					printPlaintextOfIndex(
-							threadIdx.x + i * blockSize + b * cacheSize,
+							localThreadIndex + i * blockSize + b * cacheSize,
 							goodText, goodTextOffsets, goodStencil,
 							goodStencilOffsets);
 					printf("bad plaintext:\n");
 					printPlaintextOfIndex(x, badText, badTextOffsets,
 							badStencil, badStencilOffsets);
 					printf("\n");
-					collision = true;
-					atomicExch(&lock, 0);
+					*collision = true;
+
+					unlock();
 				}
 			}
 			__syncthreads();
 		}
 	} else {
-		__syncthreads();
-		__syncthreads();
+		// threads with nothing to do must also reach __synchthreads()
+		for (int b = 0; b < blockCount; b++) {
+			__syncthreads();
+			__syncthreads();
+		}
 	}
 }
 
@@ -121,6 +131,19 @@ __device__ void combineStencilForContext(unsigned int x, sha256Context& context,
 	}
 	substringLength = textOffsets[17] - textOffsets[16];
 	sha256Update(&context, &texts[textOffsets[16]], substringLength);
+}
+
+__global__ void initBirthdayAttack(unsigned char* hashs, unsigned int dim) {
+	unsigned int x = blockIdx.x * blockDim.x + threadIdx.x;
+	if (x < dim) {
+		reduceHashFromStencil(x, &hashs[x * 4], goodText, goodTextOffsets,
+				goodStencil, goodStencilOffsets);
+	}
+}
+
+__device__ void lock() {
+	while (atomicCAS(&mutex, 0, 1) != 0) {
+	}
 }
 
 __device__ void printPlaintextOfIndex(unsigned int x, unsigned char* texts,
@@ -146,14 +169,6 @@ __device__ void printPlaintextOfIndex(unsigned int x, unsigned char* texts,
 	printf("\n");
 }
 
-__global__ void initBirthdayAttack(unsigned char* hashs, unsigned int dim) {
-	unsigned int x = blockIdx.x * blockDim.x + threadIdx.x;
-	if (x < dim) {
-		reduceHashFromStencil(x, &hashs[x * 4], goodText, goodTextOffsets,
-				goodStencil, goodStencilOffsets);
-	}
-}
-
 __device__ void reduceHashFromStencil(unsigned int x, unsigned char* hash,
 		unsigned char* texts, unsigned int* textOffsets,
 		unsigned char* stencils, unsigned int* stencilOffsets) {
@@ -164,4 +179,8 @@ __device__ void reduceHashFromStencil(unsigned int x, unsigned char* hash,
 	unsigned char sha256hash[32];
 	sha256Final(&context, sha256hash);
 	reduceSha256(sha256hash, hash);
+}
+
+__device__ void unlock() {
+	atomicExch(&mutex, 0);
 }
