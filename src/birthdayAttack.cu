@@ -23,7 +23,7 @@ __constant__ unsigned int goodStencilOffsets[] = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9,
 
 __device__ int lock = 0;
 
-__managed__ bool collision = false;
+__device__ bool collision = false;
 
 void birthdayAttack() {
 	unsigned int dim = pow(2, 16);
@@ -50,7 +50,9 @@ void birthdayAttack() {
 	cudaEventDestroy(custart);
 	cudaEventDestroy(custop);
 
-	if (collision) {
+	bool hasCollision;
+	cudaMemcpy(&hasCollision, &collision, sizeof(bool), cudaMemcpyDeviceToHost);
+	if (hasCollision) {
 		printf("Collisions found!");
 	} else {
 		printf("No collisions found!");
