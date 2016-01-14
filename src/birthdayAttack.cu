@@ -87,13 +87,7 @@ __global__ void compareBirthdayAttack(unsigned char* hashs, unsigned int dim,
 			__syncthreads();
 
 			for (unsigned int i = 0; i < blockSize; i++) {
-				// this comparison takes 99 % of the execution time
-				// manually inlined and unrolled for extra performance
-				bool isCollision = cache[i * reducedHashSize] == hash[0]
-						&& cache[i * reducedHashSize + 1] == hash[1]
-						&& cache[i * reducedHashSize + 2] == hash[2]
-						&& cache[i * reducedHashSize + 3] == hash[3];
-				if (isCollision) {
+				if (compareHash(&cache[i * reducedHashSize], hash, 4)) {
 					lock();
 
 					printf("Collision!\ngood plaintext:\n");
@@ -119,23 +113,6 @@ __global__ void compareBirthdayAttack(unsigned char* hashs, unsigned int dim,
 			__syncthreads();
 		}
 	}
-}
-
-__device__ void combineStencilForContext(unsigned int x, sha256Context* context,
-		unsigned char* texts, unsigned int* textOffsets,
-		unsigned char* stencils, unsigned int* stencilOffsets) {
-	unsigned int substringLength;
-	for (int i = 0; i < 16; i++) {
-		substringLength = textOffsets[i + 1] - textOffsets[i];
-		sha256Update(context, &texts[textOffsets[i]], substringLength);
-		int number = x >> i & 0x00000001;
-		substringLength = stencilOffsets[i * 2 + 1 + number]
-				- stencilOffsets[i * 2 + number];
-		sha256Update(context, &stencils[stencilOffsets[i * 2 + number]],
-				substringLength);
-	}
-	substringLength = textOffsets[17] - textOffsets[16];
-	sha256Update(context, &texts[textOffsets[16]], substringLength);
 }
 
 __global__ void initBirthdayAttack(unsigned char* hashs, unsigned int dim) {

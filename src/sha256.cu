@@ -16,41 +16,6 @@ __constant__ unsigned int C[64] = { 0x428a2f98, 0x71374491, 0xb5c0fbcf,
 		0x78a5636f, 0x84c87814, 0x8cc70208, 0x90befffa, 0xa4506ceb, 0xbef9a3f7,
 		0xc67178f2 };
 
-__device__ unsigned int choice(unsigned int x, unsigned int y, unsigned int z) {
-	return (x & y) ^ (~x & z);
-}
-
-__device__ bool compareHash(unsigned char* hash1, unsigned char* hash2,
-		int length) {
-	for (int i = 0; i < length; i++) {
-		if (hash1[i] != hash2[i]) {
-			return false;
-		}
-	}
-	return true;
-}
-
-// doubleIntAdd treats two unsigned ints a and b as one 64-bit integer and adds c to it
-__device__ void doubleIntAdd(unsigned int* a, unsigned int* b, unsigned int c) {
-	if (*a > (0xffffffff - c)) {
-		*b++;
-	}
-	*a += c;
-}
-
-__device__ unsigned int epsilon0(unsigned int x) {
-	return rotateRight(x, 2) ^ rotateRight(x, 13) ^ rotateRight(x, 22);
-}
-
-__device__ unsigned int epsilon1(unsigned int x) {
-	return rotateRight(x, 6) ^ rotateRight(x, 11) ^ rotateRight(x, 25);
-}
-
-__device__ unsigned int majority(unsigned int x, unsigned int y,
-		unsigned int z) {
-	return (x & y) ^ (x & z) ^ (y & z);
-}
-
 __device__ void printHash(unsigned char* hash, int length) {
 	for (int i = 0; i < length; i++) {
 		printf("%02x", hash[i]);
@@ -75,10 +40,6 @@ __device__ void reducedHash(unsigned char* data, unsigned char* hash,
 	unsigned char sha256hash[32];
 	sha256(data, sha256hash, iterations);
 	reduceSha256(sha256hash, hash);
-}
-
-__device__ unsigned int rotateRight(unsigned int a, unsigned int b) {
-	return (a >> b) | (a << (32 - b));
 }
 
 __device__ void sha256Init(sha256Context* context) {
@@ -191,21 +152,6 @@ __device__ void sha256Update(sha256Context* context, unsigned char* data,
 			context->dataLength = 0;
 		}
 	}
-}
-
-__device__ unsigned int sigma0(unsigned int x) {
-	return rotateRight(x, 7) ^ rotateRight(x, 18) ^ (x >> 3);
-}
-
-__device__ unsigned int sigma1(unsigned int x) {
-	return rotateRight(x, 17) ^ rotateRight(x, 19) ^ (x >> 10);
-}
-
-__device__ unsigned int stringLength(unsigned char* str) {
-	unsigned int length;
-	for (length = 0; str[length] != '\0'; length++) {
-	}
-	return length;
 }
 
 /*
