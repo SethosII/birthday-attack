@@ -29,10 +29,10 @@ void birthdayAttack() {
 	unsigned char* hashs;
 	cudaMalloc((void**) &hashs, dim * 4 * sizeof(unsigned char));
 
-	bool* collision = false;
+	bool collision = false;
 	bool* d_collision;
 	cudaMalloc((void**) &d_collision, sizeof(bool));
-	cudaMemcpy(d_collision, collision, sizeof(bool), cudaMemcpyHostToDevice);
+	cudaMemcpy(d_collision, &collision, sizeof(bool), cudaMemcpyHostToDevice);
 
 	dim3 blockDim(256);
 	dim3 gridDim((dim + blockDim.x - 1) / blockDim.x);
