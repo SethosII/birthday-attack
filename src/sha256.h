@@ -54,7 +54,7 @@ __forceinline__ __device__ bool compareHash(unsigned char* hash1,
 __forceinline__ __device__ void doubleIntAdd(unsigned int* a, unsigned int* b,
 		unsigned int c) {
 	if (*a > (0xffffffff - c)) {
-		*b++;
+		(*b)++;
 	}
 	*a += c;
 }
