@@ -5,6 +5,7 @@
 text=""
 offsetList=""
 offset=0
+IFS=""
 
 while read -r line
 do
