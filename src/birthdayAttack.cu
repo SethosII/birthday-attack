@@ -80,6 +80,7 @@ __global__ void compareBirthdayAttack(unsigned char* hashs, unsigned int dim,
 		int cacheSize = blockSize * reducedHashSize;
 		extern __shared__ unsigned char cache[];
 		for (int b = 0; b < blockCount; b++) {
+#pragma unroll 4
 			for (int i = 0; i < reducedHashSize; i++) {
 				cache[localThreadIndex + i * blockSize] = hashs[localThreadIndex
 						+ i * blockSize + b * cacheSize];

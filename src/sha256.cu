@@ -25,10 +25,13 @@ __device__ void printHash(unsigned char* hash, int length) {
 
 __device__ void reduceSha256(unsigned char* sha256hash,
 		unsigned char* reducedHash) {
+#pragma unroll 4
 	for (int i = 0; i < 4; i++) {
 		reducedHash[i] = sha256hash[i];
 	}
+#pragma unroll 8
 	for (int j = 1; j < 8; j++) {
+#pragma unroll 4
 		for (int i = 0; i < 4; i++) {
 			reducedHash[i] ^= sha256hash[j * 4 + i];
 		}
@@ -88,7 +91,9 @@ __device__ void sha256Final(sha256Context* context, unsigned char* hash) {
 	// append the total message length in bits and transform.
 	doubleIntAdd(&context->bitLength[0], &context->bitLength[1],
 			context->dataLength * 8);
+#pragma unroll 2
 	for (int j = 0; j < 2; j++) {
+#pragma unroll 4
 		for (int i = 0; i < 4; i++) {
 			context->data[63 - i - 4 * j] = context->bitLength[j] >> 8 * i;
 		}
@@ -96,7 +101,9 @@ __device__ void sha256Final(sha256Context* context, unsigned char* hash) {
 	sha256Transform(context, context->data);
 
 	// implementation uses little endian byte ordering and SHA uses big endian, reverse all bytes
+#pragma unroll 4
 	for (int i = 0; i < 4; i++) {
+#pragma unroll 8
 		for (int j = 0; j < 8; j++) {
 			hash[i + 4 * j] = (context->state[j] >> (24 - i * 8)) & 0x000000ff;
 		}
@@ -107,20 +114,24 @@ __device__ void sha256Transform(sha256Context* context, unsigned char* data) {
 	unsigned int shadowRegister[8];
 	unsigned int messageSchedule[64];
 
+#pragma unroll 16
 	for (int i = 0, j = 0; i < 16; i++, j += 4) {
 		messageSchedule[i] = (data[j] << 24) | (data[j + 1] << 16)
 				| (data[j + 2] << 8) | (data[j + 3]);
 	}
+#pragma unroll 48
 	for (int i = 16; i < 64; i++) {
 		messageSchedule[i] = sigma1(messageSchedule[i - 2])
 				+ messageSchedule[i - 7] + sigma0(messageSchedule[i - 15])
 				+ messageSchedule[i - 16];
 	}
 
+#pragma unroll 8
 	for (int i = 0; i < 8; i++) {
 		shadowRegister[i] = context->state[i];
 	}
 
+#pragma unroll 64
 	for (int i = 0; i < 64; i++) {
 		unsigned int textRegister1 = shadowRegister[7]
 				+ epsilon1(shadowRegister[4])
@@ -129,6 +140,7 @@ __device__ void sha256Transform(sha256Context* context, unsigned char* data) {
 		unsigned int textRegister2 = epsilon0(shadowRegister[0])
 				+ majority(shadowRegister[0], shadowRegister[1],
 						shadowRegister[2]);
+#pragma unroll 7
 		for (int j = 7; j > 0; j--) {
 			shadowRegister[j] = shadowRegister[j - 1];
 		}
@@ -136,6 +148,7 @@ __device__ void sha256Transform(sha256Context* context, unsigned char* data) {
 		shadowRegister[4] += textRegister1;
 	}
 
+#pragma unroll 8
 	for (int i = 0; i < 8; i++) {
 		context->state[i] += shadowRegister[i];
 	}
