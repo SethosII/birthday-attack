@@ -24,6 +24,8 @@ __constant__ unsigned int goodStencilOffsets[] = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9,
 __device__ int mutex = 0;
 
 void birthdayAttack() {
+	cudaDeviceSetCacheConfig (cudaFuncCachePreferL1);
+
 	unsigned int dim = pow(2, 16);
 
 	unsigned char* hashs;
