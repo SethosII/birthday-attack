@@ -31,10 +31,10 @@ void birthdayAttack() {
 	unsigned char* hashs;
 	cudaMalloc((void**) &hashs, dim * 4 * sizeof(unsigned char));
 
-	bool collision = false;
-	bool* d_collision;
-	cudaMalloc((void**) &d_collision, sizeof(bool));
-	cudaMemcpy(d_collision, &collision, sizeof(bool), cudaMemcpyHostToDevice);
+	int* collisions;
+	cudaMalloc((void**) &collisions, 11 * sizeof(int));
+	// initialize collisions or bad things will happen
+	cudaMemset(collisions, 0, 11 * sizeof(int));
 
 	dim3 blockDim(256);
 	dim3 gridDim((dim + blockDim.x - 1) / blockDim.x);
@@ -46,7 +46,7 @@ void birthdayAttack() {
 
 	initBirthdayAttack<<<gridDim, blockDim>>>(hashs, dim);
 	compareBirthdayAttack<<<gridDim, blockDim, blockDim.x * 4>>>(hashs, dim,
-			d_collision);
+			collisions);
 
 	cudaEventRecord(custop, 0);
 	cudaEventSynchronize(custop);
@@ -56,19 +56,14 @@ void birthdayAttack() {
 	cudaEventDestroy(custart);
 	cudaEventDestroy(custop);
 
-	cudaMemcpy(&collision, d_collision, sizeof(bool), cudaMemcpyDeviceToHost);
-	if (collision) {
-		printf("Collisions found!\n");
-	} else {
-		printf("No collisions found!\n");
-	}
+	printCollisions<<<1, 1>>>(collisions, hashs);
 
 	cudaFree(hashs);
-	cudaFree(d_collision);
+	cudaFree(collisions);
 }
 
 __global__ void compareBirthdayAttack(unsigned char* hashs, unsigned int dim,
-		bool* collision) {
+		int* collisions) {
 	int localThreadIndex = threadIdx.x;
 	int blockSize = blockDim.x;
 	int x = blockIdx.x * blockSize + localThreadIndex;
@@ -93,16 +88,15 @@ __global__ void compareBirthdayAttack(unsigned char* hashs, unsigned int dim,
 				if (compareHash(&cache[i * reducedHashSize], hash, 4)) {
 					lock();
 
-					printf("Collision!\ngood plaintext:\n");
-					printPlaintextOfIndex(
-							localThreadIndex + i * blockSize + b * cacheSize,
-							goodText, goodTextOffsets, goodStencil,
-							goodStencilOffsets);
-					printf("bad plaintext:\n");
-					printPlaintextOfIndex(x, badText, badTextOffsets,
-							badStencil, badStencilOffsets);
-					printf("\n");
-					*collision = true;
+					if (collisions[0] < 5) {
+						// store good index
+						collisions[collisions[0] * 2 + 1] = i
+								+ b * cacheSize / 4;
+						// store bad index
+						collisions[(collisions[0] + 1) * 2] = x;
+					}
+					// increment number of collisions
+					collisions[0]++;
 
 					unlock();
 				}
@@ -128,6 +122,29 @@ __global__ void initBirthdayAttack(unsigned char* hashs, unsigned int dim) {
 
 __device__ void lock() {
 	while (atomicCAS(&mutex, 0, 1) != 0) {
+	}
+}
+
+__global__ void printCollisions(int* collisions, unsigned char* hashs) {
+	if (collisions[0] > 0) {
+		printf("Collisions found: %d\n\n", collisions[0]);
+		for (int i = 0; i < collisions[0]; i++) {
+			printf("\nCollision with good text #%d and bad text #%d\n",
+					collisions[i * 2 + 1], collisions[(i + 1) * 2]);
+
+			printf("\nGood plaintext:\n");
+			printPlaintextOfIndex(collisions[i * 2 + 1], goodText,
+					goodTextOffsets, goodStencil, goodStencilOffsets);
+			printf("\nBad plaintext:\n");
+			printPlaintextOfIndex(collisions[(i + 1) * 2], badText,
+					badTextOffsets, badStencil, badStencilOffsets);
+
+			printf("\nHash value of both is: ");
+			printHash(&hashs[collisions[(i * 2 + 1)] * 4], 4);
+			printf("\n");
+		}
+	} else {
+		printf("No collisions found!\n");
 	}
 }
 
