@@ -3,23 +3,25 @@
 #include "sha256.h"
 #include "birthdayAttack.h"
 
-__constant__ unsigned char* badText = (unsigned char*) ".................";
-__constant__ unsigned int badTextOffsets[] = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10,
-		11, 12, 13, 14, 15, 16, 17 };
+__constant__ unsigned char* badText =
+		(unsigned char*) "Linux sucks! It is build  very old Software like X11 which makes them  to maintain. Also there are several projects within the Linux community which have mostly  like Wayland and Mir.  there is . This shows how  the community is. The next point are the . They suck. What should  stand for? Also the whole development  sucks. They have thousands of unpaid developers throwing code, part time, into a giant, internet-y  of software. What could possibly go wrong? The only result can be a  pile of . . As an old  goes: \"too many cooks spoil the broth\". So the freedom for the users consists of choices between lots of  projects. Even Linux users themself rant about it.  nobody should use Linux!";
+__constant__ unsigned int badTextOffsets[] = { 0, 25, 70, 161, 184, 194, 211,
+		253, 278, 317, 417, 486, 495, 497, 509, 615, 667, 692 };
 __constant__ unsigned char* badStencil =
-		(unsigned char*) "qqwweerrttzzuuiiooppaassddffgghhjjkkllyyxxccvvbbnnmm112233445566";
-__constant__ unsigned int badStencilOffsets[] = { 0, 2, 4, 6, 8, 10, 12, 14, 16,
-		18, 20, 22, 24, 26, 28, 30, 32, 34, 36, 38, 40, 42, 44, 46, 48, 50, 52,
-		54, 56, 58, 60, 62, 64 };
+		(unsigned char*) "on top ofbased onharddifficultidentical aimthe same objectiveBecause of such thingsThereforea duplication of effortduplicate workdivideddisunitedcodenamescode namesUtopic UnicornTrusty TharprocessprocedurevattubgiantgiganticcrapgarbageThere is no focus in the developmentThe development lacks focussayingproverbhalf donesemi-finishedThat's whyTherefore";
+__constant__ unsigned int badStencilOffsets[] = { 0, 9, 17, 21, 30, 43, 61, 83,
+		92, 115, 129, 136, 145, 154, 164, 178, 189, 196, 205, 208, 211, 216,
+		224, 228, 235, 271, 298, 304, 311, 320, 333, 343, 352 };
 
-__constant__ unsigned char* goodText = (unsigned char*) ".................";
-__constant__ unsigned int goodTextOffsets[] = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9,
-		10, 11, 12, 13, 14, 15, 16, 17 };
+__constant__ unsigned char* goodText =
+		(unsigned char*) "Linux is awesome! It is build  reliable Software like X11. Also there are several projects within the Linux community which have mostly  like Wayland and Mir - and that's . Why shouldn't you?  is no problem. And with  approaches you will propably find better solutions.  the many projects you can choose what  you best. The next point are the . They rule. How awesome was ? Also the whole development  is amazing. Some people argue that . They have thousands of unpaid developers throwing code, part time, into a giant, internet-y  of software. And it works. As an old  tells us: . Sometimes even Linux users themself rant about Linux - and they still love it because they can .  everybody should use Linux!";
+__constant__ unsigned int goodTextOffsets[] = { 0, 30, 136, 171, 192, 217, 270,
+		309, 343, 372, 401, 437, 531, 569, 580, 677, 679, 707 };
 __constant__ unsigned char* goodStencil =
-		(unsigned char*) "qwertzuiopasdfghjklyxcvbnm123456";
-__constant__ unsigned int goodStencilOffsets[] = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9,
-		10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27,
-		28, 29, 30, 31, 32 };
+		(unsigned char*) "on top ofbased onidentical aimthe same objectivefinegreatDuplication of effortDuplicate workmoredifferentBecause ofThanks tosuitsfitscodenamescode namesHeisenbugBeefy Miracleprocessprocedurethere is no focus in the developmentthe development lacks focusvattubsayingproverb\"the more the merrier\"\"many hands make light work\"keep a critical eye on what they are usingcritically examineThat's whyTherefore";
+__constant__ unsigned int goodStencilOffsets[] = { 0, 9, 17, 30, 48, 52, 57, 78,
+		92, 96, 105, 115, 124, 129, 133, 142, 152, 161, 174, 181, 190, 226, 253,
+		256, 259, 265, 272, 294, 322, 364, 382, 392, 401 };
 
 __device__ int mutex = 0;
 
