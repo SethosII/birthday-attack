@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include "sha256.h"
 #include "birthdayAttack.h"
+#include "helper.h"
 
 __constant__ unsigned char* badText =
 		(unsigned char*) "Linux sucks! It is build  very old Software like X11 which makes them  to maintain. Also there are several projects within the Linux community which have mostly  like Wayland and Mir.  there is . This shows how  the community is. The next point are the . They suck. What should  stand for? Also the whole development  sucks. They have thousands of unpaid developers throwing code, part time, into a giant, internet-y  of software. What could possibly go wrong? The only result can be a  pile of . . As an old  goes: \"too many cooks spoil the broth\". So the freedom for the users consists of choices between lots of  projects. Even Linux users themself rant about it.  nobody should use Linux!";
@@ -26,42 +27,42 @@ __constant__ unsigned int goodStencilOffsets[] = { 0, 9, 17, 30, 48, 52, 57, 78,
 __device__ int mutex = 0;
 
 void birthdayAttack() {
-	cudaDeviceSetCacheConfig (cudaFuncCachePreferL1);
+	cudaDeviceSetCacheConfig(cudaFuncCachePreferL1);
 
 	unsigned int dim = pow(2, 16);
 
 	unsigned char* hashs;
-	cudaMalloc((void**) &hashs, dim * 4 * sizeof(unsigned char));
+	cudaCheck(cudaMalloc((void**) &hashs, dim * 4 * sizeof(unsigned char)));
 
 	int* collisions;
-	cudaMalloc((void**) &collisions, 11 * sizeof(int));
+	cudaCheck(cudaMalloc((void**) &collisions, 11 * sizeof(int)));
 	// initialize collisions or bad things will happen
-	cudaMemset(collisions, 0, 11 * sizeof(int));
+	cudaCheck(cudaMemset(collisions, 0, 11 * sizeof(int)));
 
 	dim3 blockDim(256);
 	dim3 gridDim((dim + blockDim.x - 1) / blockDim.x);
 
 	cudaEvent_t custart, custop;
-	cudaEventCreate(&custart);
-	cudaEventCreate(&custop);
-	cudaEventRecord(custart, 0);
+	cudaCheck(cudaEventCreate(&custart));
+	cudaCheck(cudaEventCreate(&custop));
+	cudaCheck(cudaEventRecord(custart, 0));
 
 	initBirthdayAttack<<<gridDim, blockDim>>>(hashs, dim);
 	compareBirthdayAttack<<<gridDim, blockDim, blockDim.x * 4>>>(hashs, dim,
 			collisions);
 
-	cudaEventRecord(custop, 0);
-	cudaEventSynchronize(custop);
+	cudaCheck(cudaEventRecord(custop, 0));
+	cudaCheck(cudaEventSynchronize(custop));
 	float elapsedTime;
-	cudaEventElapsedTime(&elapsedTime, custart, custop);
+	cudaCheck(cudaEventElapsedTime(&elapsedTime, custart, custop));
 	printf("This birthday attack took %3.1f ms.\n", elapsedTime);
-	cudaEventDestroy(custart);
-	cudaEventDestroy(custop);
+	cudaCheck(cudaEventDestroy(custart));
+	cudaCheck(cudaEventDestroy(custop));
 
 	printCollisions<<<1, 1>>>(collisions, hashs);
 
-	cudaFree(hashs);
-	cudaFree(collisions);
+	cudaCheck(cudaFree(hashs));
+	cudaCheck(cudaFree(collisions));
 }
 
 __global__ void compareBirthdayAttack(unsigned char* hashs, unsigned int dim,
