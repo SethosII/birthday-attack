@@ -1,6 +1,13 @@
 #!/bin/bash
 
 # Purpose: convert lines of file ($1) into one line and offset list
+# e. g.:
+# This 
+# is 
+# text.
+# into:
+# This is text.
+# 0, 5, 8, 13
 
 text=""
 offsetList=""
